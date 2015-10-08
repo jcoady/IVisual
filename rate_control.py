@@ -4,6 +4,9 @@ import sys
 from numpy import zeros, random
 #import wx
 import platform
+import IPython
+import threading
+
 
 # Unresolved bug: rate(X) yields only about 0.8X iterations per second.
 
@@ -101,7 +104,7 @@ class simulateDelay:
         self.callTimes.append(_clock())
         time.sleep(random.normal()*self.delaySigma + self.delayAvg)
 
-class RateKeeper:
+class RateKeeper(object):
     def __init__(self, interactPeriod=INTERACT_PERIOD, interactFunc=simulateDelay):
         self.interactionPeriod = interactPeriod
         self.interactFunc = interactFunc
@@ -183,9 +186,13 @@ class RateKeeper:
 ##        print("%1.4f %i %i %i %1.6f %1.6f %1.6f %1.6f" % (_clock(), M, N, self.renderWaits,
 ##                                self.userTime, self.callTime, self.delay, self.renderTime))
         
+    def sendtofrontend(self):
+        pass
+        
     def __call__(self, maxRate=100):
         #td.add('-------------------------')
         calledTime = _clock()            
+        self.sendtofrontend()
         if maxRate < 1: raise ValueError("rate value must be greater than or equal to 1")
         self.count += 1
         if self.count == 1: # first time rate has been called
