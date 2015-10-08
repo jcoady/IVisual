@@ -2,7 +2,7 @@ from __future__ import print_function, division, absolute_import
 import ivisual.crayola as color
 import ivisual.materials
 import numpy as np
-from array import array
+#from array import array
 from ivisual.rate_control import *
 import IPython
 if IPython.__version__ >= '4.0.0' :
@@ -134,7 +134,7 @@ class baseObj(object):
         object.__setattr__(self, 'attrsupdt', set())
         object.__setattr__(self, 'oid', remember(self))
         if kwargs is not None:
-            for key, value in kwargs.iteritems():
+            for key, value in kwargs.items():
                 object.__setattr__(self, key, value)
         baseObj.incrObjCnt()
         if(canvas.get_selected() != None):
@@ -345,7 +345,7 @@ class GlowWidget(object):
             mouse['shift'] = args[0]['mouse']['shift']
             evt['mouse'] = AllMyFields(mouse)
             """
-            mouse = Mouse(pos = evt['pos'], pick = evt['pick'], pickpos = args[0]['mouse']['pickpos'], alt = args[0]['mouse']['alt'], ctrl = args[0]['mouse']['ctrl'],
+            mouse = Mouse(pos = vector(evt['pos']), pick = evt['pick'], pickpos = vector(args[0]['mouse']['pickpos']), alt = args[0]['mouse']['alt'], ctrl = args[0]['mouse']['ctrl'],
                           shift = args[0]['mouse']['shift'])
             evt['mouse'] = mouse
             if 'scene' in data:
@@ -562,17 +562,19 @@ class vector(object):
         else:
             axis = axis/math.sqrt(axis.dot(axis))
             axis = np.array([axis.x,axis.y,axis.z])
-            
-        a = math.cos(angle/2)
-        b,c,d = -axis*math.sin(angle/2)
-        mat = np.array([[a*a+b*b-c*c-d*d, 2*(b*c-a*d), 2*(b*d+a*c)],
-                         [2*(b*c+a*d), a*a+c*c-b*b-d*d, 2*(c*d-a*b)],
-                         [2*(b*d-a*c), 2*(c*d+a*b), a*a+d*d-b*b-c*c]])
+        c = math.cos(angle)
+        s = math.sin(angle)
+        t = 1-c
+        u = norm(axis)
+        x = u.x
+        y = u.y
+        z = u.z
+        mat = np.array([ [t*x*x+c, t*x*y-z*s, t*x*z+y*s],
+                         [t*x*y+z*s, t*y*y+c, t*y*z-x*s],
+                         [t*x*z-y*s, t*y*z+x*s, t*z*z+c] ])
         v = np.array([self.x,self.y,self.z])
         res = np.dot(mat,v)
-        self.x = res[0]
-        self.y = res[1]
-        self.z = res[2]
+        return vector(res)
     
     def astuple(self):
         return (self.x,self.y,self.z)
@@ -783,20 +785,28 @@ class baseAttrs(baseObj):
                 return object.__getattribute__(self, 'color')[2]
         else:
             return super(baseAttrs, self).__getattribute__(name)
-        
-
-    def rotate(self, angle = math.pi/4, axis = axis, origin = pos):
-        axis = vector(axis) if type(axis) in [tuple, list, np.ndarray] else axis
-        origin = vector(origin) if type(origin) in [tuple, list, np.ndarray] else origin
-        cmd = {"cmd": "rotate", "idx": self.idx,
-               "attrs": [{"attr": "pos", "value": origin.values()},
-                        {"attr": "axis", "value": axis.values()},
-                        {"attr": "angle", "value": angle}]}
-        if (baseObj.glow != None):
-            baseObj.glow.comm.send([cmd])
+            
+    def rotate(self, angle=math.pi/4, axis=None, origin=None):
+        if axis == None:
+            rotaxis = self.__getattribute__('axis')
         else:
-            self.appendcmd(cmd)
-        #baseObj.cmds.append(cmd)
+            rotaxis = norm(vector(axis)) if type(axis) in [tuple, list, np.ndarray] else axis
+        if origin == None:
+            origin = self.__getattribute__('pos')
+        else:
+            origin = vector(origin) if type(origin) in [tuple, list, np.ndarray] else origin
+        self.__setattr__('pos', origin+(self.pos-origin).rotate(angle, rotaxis))
+        axis = self.__getattribute__('axis')
+        X = norm(axis)
+        Y = self.__getattribute__('up')
+        Z = X.cross(Y)
+        if Z.dot(Z) < 1e-10:
+            Y = vector(1,0,0)
+            Z = X.cross(Y)
+            if Z.dot(Z) < 1e-10:
+                Y = vector(0,1,0)            
+        self.__setattr__('axis', axis.rotate(angle, rotaxis))          
+        self.__setattr__('up', Y.rotate(angle, rotaxis))
 
     def __del__(self):
         for attr in ['pos','axis','size','up']:
@@ -913,7 +923,7 @@ class box(trailAttrs):
                          {"attr": "axis", "value": self.axis.values()},
                          {"attr": "size", "value": self.size.values()},
                          {"attr": "up", "value": self.up.values()},
-                         {"attr": "color", "value": list(self.color)},
+                         {"attr": "color", "value": self.color},
                          {"attr": "opacity", "value": self.opacity},
                          {"attr": "shininess", "value": self.shininess},
                          {"attr": "emissive", "value": self.emissive},
@@ -989,7 +999,7 @@ class cone(trailAttrs):
                          {"attr": "axis", "value": self.axis.values()},
                          {"attr": "size", "value": self.size.values()},
                          {"attr": "up", "value": self.up.values()},
-                         {"attr": "color", "value": list(self.color)},
+                         {"attr": "color", "value": self.color},
                          {"attr": "opacity", "value": self.opacity},
                          {"attr": "shininess", "value": self.shininess},
                          {"attr": "emissive", "value": self.emissive},
@@ -1161,7 +1171,7 @@ class curve(baseAttrs2):
                          #{"attr": "axis", "value": self.axis.values()},
                          #{"attr": "size", "value": self.size.values()},
                          #{"attr": "up", "value": self.up.values()},
-                         #{"attr": "color", "value": list(self.color)},
+                         #{"attr": "color", "value": self.color},
                          #{"attr": "shininess", "value": self.shininess},
                          #{"attr": "emissive", "value": self.emissive},
                          #{"attr": "pnts", "value": [{"pos": [0, 0, 0]}, {"pos": [1, 0, 0]}]},
@@ -1415,7 +1425,7 @@ class points(baseAttrs2):
                          #{"attr": "axis", "value": self.axis.values()},
                          #{"attr": "size", "value": self.size.values()},
                          #{"attr": "up", "value": self.up.values()},
-                         #{"attr": "color", "value": list(self.color)},
+                         #{"attr": "color", "value": self.color},
                          #{"attr": "shininess", "value": self.shininess},
                          #{"attr": "emissive", "value": self.emissive},
                          #{"attr": "pnts", "value": [{"pos": [0, 0, 0]}, {"pos": [1, 0, 0]}]},
@@ -1680,7 +1690,7 @@ class faces(baseAttrs2):
                          #{"attr": "axis", "value": self.axis.values()},
                          #{"attr": "size", "value": self.size.values()},
                          #{"attr": "up", "value": self.up.values()},
-                         #{"attr": "color", "value": list(self.color)},
+                         #{"attr": "color", "value": self.color},
                          #{"attr": "shininess", "value": self.shininess},
                          #{"attr": "emissive", "value": self.emissive},
                          #{"attr": "pnts", "value": [{"pos": [0, 0, 0]}, {"pos": [1, 0, 0]}]},
@@ -1849,7 +1859,7 @@ class faces2(baseAttrs2):
                          #{"attr": "axis", "value": self.axis.values()},
                          #{"attr": "size", "value": self.size.values()},
                          #{"attr": "up", "value": self.up.values()},
-                         #{"attr": "color", "value": list(self.color)},
+                         #{"attr": "color", "value": self.color},
                          #{"attr": "shininess", "value": self.shininess},
                          #{"attr": "emissive", "value": self.emissive},
                          #{"attr": "pnts", "value": [{"pos": [0, 0, 0]}, {"pos": [1, 0, 0]}]},
@@ -1936,7 +1946,7 @@ class helix(baseAttrs2):
                          {"attr": "axis", "value": self.axis.values()},
                          {"attr": "size", "value": self.size.values()},
                          {"attr": "up", "value": self.up.values()},
-                         {"attr": "color", "value": list(self.color)},
+                         {"attr": "color", "value": self.color},
                          {"attr": "thickness", "value": self.thickness},
                          {"attr": "coils", "value": self.coils},
                          {"attr": "visible", "value": self.visible},
@@ -2012,7 +2022,7 @@ class arrow(trailAttrs):
                    "attrs": [{"attr": "pos", "value": self.pos.values()},
                              {"attr": "axis_and_length", "value": self.axis.values()},
                              {"attr": "up", "value": self.up.values()},
-                             {"attr": "color", "value": list(self.color)},
+                             {"attr": "color", "value": self.color},
                              {"attr": "opacity", "value": self.opacity},
                              {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1},
                              {"attr": "visible", "value": self.visible},
@@ -2030,7 +2040,7 @@ class arrow(trailAttrs):
                    "attrs": [{"attr": "pos", "value": self.pos.values()},
                              {"attr": "axis_and_length", "value": self.axis.values()},
                              {"attr": "up", "value": self.up.values()},
-                             {"attr": "color", "value": list(self.color)},
+                             {"attr": "color", "value": self.color},
                              {"attr": "opacity", "value": self.opacity},
                              {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1},
                              {"attr": "visible", "value": self.visible},
@@ -2121,7 +2131,7 @@ class cylinder(trailAttrs):
                          {"attr": "axis", "value": self.axis.values()},
                          {"attr": "size", "value": self.size.values()},
                          {"attr": "up", "value": self.up.values()},
-                         {"attr": "color", "value": list(self.color)},
+                         {"attr": "color", "value": self.color},
                          {"attr": "opacity", "value": self.opacity},
                          {"attr": "shininess", "value": self.shininess},
                          {"attr": "emissive", "value": self.emissive},
@@ -2200,7 +2210,7 @@ class pyramid(trailAttrs):
                          {"attr": "axis", "value": self.axis.values()},
                          {"attr": "size", "value": self.size.values()},
                          {"attr": "up", "value": self.up.values()},
-                         {"attr": "color", "value": list(self.color)},
+                         {"attr": "color", "value": self.color},
                          {"attr": "opacity", "value": self.opacity},
                          {"attr": "shininess", "value": self.shininess},
                          {"attr": "emissive", "value": self.emissive},
@@ -2269,7 +2279,7 @@ class sphere(trailAttrs):
                          {"attr": "axis", "value": self.axis.values()},
                          {"attr": "size", "value": self.size.values()},
                          {"attr": "up", "value": self.up.values()},
-                         {"attr": "color", "value": list(self.color)},
+                         {"attr": "color", "value": self.color},
                          {"attr": "opacity", "value": self.opacity},
                          {"attr": "shininess", "value": self.shininess},
                          {"attr": "emissive", "value": self.emissive},
@@ -2331,7 +2341,7 @@ class ellipsoid(trailAttrs):
                          {"attr": "axis", "value": self.axis.values()},
                          {"attr": "size", "value": self.size.values()},
                          {"attr": "up", "value": self.up.values()},
-                         {"attr": "color", "value": list(self.color)},
+                         {"attr": "color", "value": self.color},
                          {"attr": "opacity", "value": self.opacity},
                          {"attr": "shininess", "value": self.shininess},
                          {"attr": "emissive", "value": self.emissive},
@@ -2408,7 +2418,7 @@ class ring(baseAttrs):
                          {"attr": "axis", "value": self.axis.values()},
                          {"attr": "size", "value": self.size.values()},
                          {"attr": "up", "value": self.up.values()},
-                         {"attr": "color", "value": list(self.color)},
+                         {"attr": "color", "value": self.color},
                          {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1},
                          {"attr": "make_trail", "value": self.make_trail},
                          {"attr": "type", "value": 'curve' if self.trail_type == 'curve' else 'spheres'},
@@ -2474,13 +2484,13 @@ class label(baseAttrs2):
                          {"attr": "yoffset", "value": self.yoffset},
                          {"attr": "font", "value": self.font},
                          {"attr": "height", "value": self.height},
-                         {"attr": "color", "value": list(self.color)},
-                         {"attr": "background", "value": list(self.background)},
+                         {"attr": "color", "value": self.color},
+                         {"attr": "background", "value": self.background},
                          {"attr": "opacity", "value": self.opacity},
                          {"attr": "border", "value": self.border},
                          {"attr": "box", "value": self.box},
                          {"attr": "line", "value": self.line},
-                         {"attr": "linecolor", "value": list(self.linecolor)},
+                         {"attr": "linecolor", "value": self.linecolor},
                          {"attr": "space", "value": self.space},
                          {"attr": "visible", "value": self.visible},
                          {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}
@@ -2513,7 +2523,7 @@ class frame(baseAttrs):
                "attrs": [{"attr": "pos", "value": self.pos.values()},
                          {"attr": "axis", "value": self.axis.values()},
                          {"attr": "up", "value": self.up.values()},
-                         {"attr": "color", "value": list(self.color)},
+                         {"attr": "color", "value": self.color},
                          {"attr": "visible", "value": self.visible},
                          {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}]}
         
@@ -2539,7 +2549,7 @@ class frame(baseAttrs):
                "attrs": [{"attr": "pos", "value": self.pos.values()},
                          {"attr": "axis", "value": self.axis.values()},
                          {"attr": "up", "value": self.up.values()},
-                         {"attr": "color", "value": list(self.color)},
+                         {"attr": "color", "value": self.color},
                          {"attr": "obj_idxs", "value": obj_idxs},
                          {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}]}
         
@@ -2796,8 +2806,8 @@ class canvas(sceneObj):
         cmd = {"cmd": "canvas", "idx": self.idx, "guid": self.guid, 
                "attrs": [{"attr": "visible", "value": self.visible},
                          {"attr": "title", "value": self.title},
-                         {"attr": "background", "value": list(self.background)},
-                         {"attr": "ambient", "value": list(self.ambient)},
+                         {"attr": "background", "value": self.background},
+                         {"attr": "ambient", "value": self.ambient},
                          {"attr": "height", "value": self.height},
                          {"attr": "width", "value": self.width},
                          {"attr": "forward", "value": self.forward.values()},
@@ -2872,7 +2882,7 @@ class local_light(baseObj):
         object.__setattr__(self, 'frame', frame)
         cmd = {"cmd": "local_light", "idx": self.idx, "guid": self.guid,
                "attrs": [{"attr": "pos", "value": self.pos.values()},
-                         {"attr": "color", "value": list(self.color)},
+                         {"attr": "color", "value": self.color},
                          {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}
                          ]}
         if (canvas.get_selected() != None):
@@ -2889,7 +2899,7 @@ class local_light(baseObj):
             baseObj.cmds.append(cmd)
         elif name == 'color':
             self.__dict__[name] = value
-            cmd = {"idx": self.idx, "attr": name, "val": list(self.color)}            
+            cmd = {"idx": self.idx, "attr": name, "val": self.color}            
                 
             baseObj.cmds.append(cmd)
                 
@@ -2906,7 +2916,7 @@ class distant_light(baseObj):
         object.__setattr__(self, 'frame', frame)
         cmd = {"cmd": "distant_light", "idx": self.idx,  "guid": self.guid,
                "attrs": [{"attr": "direction", "value": self.direction.values()},
-                         {"attr": "color", "value": list(self.color)},
+                         {"attr": "color", "value": self.color},
                          {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}
                          ]}
         if (canvas.get_selected() != None):
@@ -2923,7 +2933,7 @@ class distant_light(baseObj):
             baseObj.cmds.append(cmd)
         elif name == 'color':
             self.__dict__[name] = value
-            cmd = {"idx": self.idx, "attr": name, "val": list(self.color)}            
+            cmd = {"idx": self.idx, "attr": name, "val": self.color}            
                 
             baseObj.cmds.append(cmd)
                 
