@@ -7,12 +7,12 @@ console.log("glowscript loading");
 
 window.__context = { glowscript_container: $("#glowscript").removeAttr("id") };
 
-var scene = canvas();
+//var scene = canvas();
 var glowObjs = [];
 
-scene.title.text("fps = frames/sec\n ");
+//scene.title.text("fps = frames/sec\n ");
 // Display frames per second and render time:
-$("<div id='fps'/>").appendTo(scene.title);
+//$("<div id='fps'/>").appendTo(scene.title);
 
 function o2vec3(p) {
     "use strict";
@@ -95,7 +95,7 @@ GlowWidget.prototype.handler = function (msg) {
             cmd = data.shift();
             if (typeof cmd.cmd === 'undefined') {
                 if (typeof cmd.idx !== 'undefined') {
-                    vlst = ['pos', 'size', 'color', 'axis', 'up', 'axis_and_length', 'direction', 'texpos', 'normal', 'bumpaxis', 'center', 'forward', 'foreground', 'background', 'ambient'];
+                    vlst = ['pos', 'size', 'color', 'axis', 'up', 'axis_and_length', 'direction', 'texpos', 'normal', 'bumpaxis', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor'];
                     if (vlst.indexOf(cmd.attr) !== -1) {
                         if ((cmd.attr === 'size') && (glowObjs[cmd.idx] instanceof points)) {
                             glowObjs[cmd.idx][cmd.attr] = cmd.val;
@@ -121,7 +121,7 @@ GlowWidget.prototype.handler = function (msg) {
                 }
                 */
                 if (typeof cmd.attrs !== 'undefined') {
-                    vlst = ['pos', 'size', 'color', 'axis', 'up', 'axis_and_length', 'direction', 'center', 'forward', 'foreground', 'background', 'ambient'];
+                    vlst = ['pos', 'size', 'color', 'axis', 'up', 'axis_and_length', 'direction', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor'];
                     trailAttrs = ['make_trail', 'type', 'interval', 'retain'];
                     triangle_quad = ['v0', 'v1', 'v2', 'v3'];
                     len2 = cmd.attrs.length;
@@ -305,6 +305,7 @@ GlowWidget.prototype.handler = function (msg) {
                             }
                             glowObjs[cmd.idx] = compound(objects, cfg);
                         } else if (cmd.cmd === 'canvas') {
+                            //glowObjs[cmd.idx] = canvas();
                             glowObjs[cmd.idx] = canvas(cfg);
                             if (cfg.title !== "") {
                                 glowObjs[cmd.idx].title.text(cfg.title + " \n ");
@@ -375,7 +376,7 @@ GlowWidget.prototype.handler = function (msg) {
                     }
                 } else if (cmd.cmd === 'delete') {
                     b = glowObjs[cmd.idx];
-                    console.log("delete : ",cmd.idx);
+                    //console.log("delete : ",cmd.idx);
                     if ((b !== null) || (typeof b.visible !== 'undefined')) {
                         b.visible = false;
                     }
@@ -400,7 +401,8 @@ GlowWidget.prototype.handler = function (msg) {
                 } else if (cmd.cmd === 'push') {
                     //console.log("push detected");
                 } else if (cmd.cmd === 'scene') {
-                    glowObjs[cmd.idx] = scene;
+                    glowObjs[cmd.idx] = canvas();
+                    //glowObjs[cmd.idx] = scene;
                     //console.log("scene obj at idx = ", cmd.idx);
                 }
             }
