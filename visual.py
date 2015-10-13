@@ -1,9 +1,9 @@
 from __future__ import print_function, division, absolute_import
-import ivisual.crayola as color
-import ivisual.materials
+from . import crayola as color
+from . import materials
 import numpy as np
 #from array import array
-from ivisual.rate_control import *
+from .rate_control import *
 import IPython
 if IPython.__version__ >= '4.0.0' :
     import ipykernel
