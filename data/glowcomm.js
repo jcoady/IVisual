@@ -195,6 +195,7 @@ GlowWidget.prototype.handler = function (msg) {
                             glowObjs[cmd.idx] = ring(cfg);
                         } else if (cmd.cmd === 'curve') {
                             glowObjs[cmd.idx] = curve(cfg);
+                            //console.log("curve command detected : ", cmd.idx, cfg);
                             if (typeof cfg.pnts !== 'undefined') {
                                 len3 = cfg.pnts.length;
                                 for (j = 0; j < len3; j++) {
@@ -209,6 +210,7 @@ GlowWidget.prototype.handler = function (msg) {
                             }
                         } else if (cmd.cmd === 'points') {
                             glowObjs[cmd.idx] = points(cfg);
+                            //console.log("points command detected : ", cmd.idx, cfg);
                             if (typeof cfg.pnts !== 'undefined') {
                                 len3 = cfg.pnts.length;
                                 for (j = 0; j < len3; j++) {
@@ -278,6 +280,7 @@ GlowWidget.prototype.handler = function (msg) {
                         } else if (cmd.cmd === 'quad') {
                             glowObjs[cmd.idx] = quad(cfg);
                         } else if (cmd.cmd === 'push') {
+                            //console.log("push command detected : ",cmd.idx, cfg);
                             glowObjs[cmd.idx].push(cfg);
                         } else if (cmd.cmd === 'label') {
                             glowObjs[cmd.idx] = label(cfg);
