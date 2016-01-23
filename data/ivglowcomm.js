@@ -1,7 +1,7 @@
 
 var vp;
 
-define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.1.1.min"], function() {
+define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.1.2.min","nbextensions/pako.min","nbextensions/pako_inflate.min","nbextensions/pako_deflate.min"], function() {
 /*jslint plusplus: true */
 console.log("glowscript loading");
 
@@ -9,6 +9,8 @@ window.__context = { glowscript_container: $("#glowscript").removeAttr("id") };
 
 //var scene = canvas();
 var glowObjs = [];
+    
+var pako = require('nbextensions/pako.min');
 
 //scene.title.text("fps = frames/sec\n ");
 // Display frames per second and render time:
@@ -24,6 +26,26 @@ function process(event) {
     //console.log("Event Detected ",event.type);
 }
 
+function decode_base64_zipped_json(b64Data) {
+
+    // Decode base64 (convert ascii to binary)
+    var strData     = atob(b64Data);
+
+    // Convert binary string to character-number array
+    var charData    = strData.split('').map(function(x){return x.charCodeAt(0);});
+
+    // Turn number array into byte-array
+    var binData     = new Uint8Array(charData);
+
+    // Pako magic
+    var pdata        = pako.inflate(binData);
+
+    // Convert gunzipped byteArray back to ascii string:
+    strData     = String.fromCharCode.apply(null, new Uint16Array(pdata));
+    
+    return JSON.parse(strData)
+}
+    
 var GlowWidget = function () {
     this.comm = IPython.notebook.kernel.comm_manager.new_comm('glow');
     this.comm.on_msg($.proxy(this.handler, this));
@@ -85,8 +107,13 @@ GlowWidget.prototype.handler = function (msg) {
     var data = msg.content.data;
     //console.log('glow', data, data.length);
     //console.log('JSON ' + JSON.stringify(data));
-
-    if (data.length > 0) {
+    
+    
+    if (typeof data.zipped !== 'undefined') {        
+        data = decode_base64_zipped_json(data.zipped);        
+    }
+        
+    if ((typeof data.zmsg === 'undefined') && (data.length > 0)) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst, cnvsidx;
         var trailAttrs, triangle_quad, objects, trail_cfg, make_trail;  
         var len = data.length;
@@ -195,7 +222,6 @@ GlowWidget.prototype.handler = function (msg) {
                             glowObjs[cmd.idx] = ring(cfg);
                         } else if (cmd.cmd === 'curve') {
                             glowObjs[cmd.idx] = curve(cfg);
-                            //console.log("curve command detected : ", cmd.idx, cfg);
                             if (typeof cfg.pnts !== 'undefined') {
                                 len3 = cfg.pnts.length;
                                 for (j = 0; j < len3; j++) {
@@ -210,7 +236,6 @@ GlowWidget.prototype.handler = function (msg) {
                             }
                         } else if (cmd.cmd === 'points') {
                             glowObjs[cmd.idx] = points(cfg);
-                            //console.log("points command detected : ", cmd.idx, cfg);
                             if (typeof cfg.pnts !== 'undefined') {
                                 len3 = cfg.pnts.length;
                                 for (j = 0; j < len3; j++) {
@@ -280,7 +305,6 @@ GlowWidget.prototype.handler = function (msg) {
                         } else if (cmd.cmd === 'quad') {
                             glowObjs[cmd.idx] = quad(cfg);
                         } else if (cmd.cmd === 'push') {
-                            //console.log("push command detected : ",cmd.idx, cfg);
                             glowObjs[cmd.idx].push(cfg);
                         } else if (cmd.cmd === 'label') {
                             glowObjs[cmd.idx] = label(cfg);

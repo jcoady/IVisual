@@ -27,11 +27,28 @@ import collections
 import copy
 import sys
 import weakref
+import zlib
+import base64
+import json
 
 from numpy import zeros, random
 import platform
 
 glowlock = threading.Lock()
+
+def send_base64_zipped_json(comm, req):
+    """json encode req, and zip the json before sending it as base64 encoded string"""
+    json_str = json.dumps(req)
+    z = zlib.compress(json_str)
+    z64 = base64.b64encode(z)
+    return comm.send(dict(zipped = z64))
+
+def convert_base64_zipped_json(req):
+    """json encode req, and zip the json before sending it as base64 encoded string"""
+    json_str = json.dumps(req)
+    z = zlib.compress(json_str)
+    return base64.b64encode(z)
+
 
 class RateKeeper2(RateKeeper):
     
@@ -45,8 +62,9 @@ class RateKeeper2(RateKeeper):
 
     def sendtofrontend(self):
         self.active = True
-        if self.send:
-            with glowlock:                    
+        if (len(glowqueue) > 0) or (len(baseObj.cmds) > 0) or self.send:
+            #with glowlock:
+            if True:
                 try:
                     if (len(baseObj.cmds) > 0):
                         a = copy.copy(baseObj.cmds)
@@ -57,9 +75,12 @@ class RateKeeper2(RateKeeper):
                             del baseObj.cmds[0]
                             l -= 1                
 
-                    l = self.sz
-                    req = commcmds[:l]
-                    baseObj.glow.comm.send(req)
+                    for i in range(len(glowqueue)):
+                        req = glowqueue.popleft()
+                        if len(req) > 0 :
+                            baseObj.glow.comm.send(req)
+ 
+
                 finally:
                     self.send = False
                     self.sendcnt = 0
@@ -87,17 +108,24 @@ rate = RateKeeper2(interactFunc = ifunc)
 
 display(HTML("""<div id="scene0"><div id="glowscript" class="glowscript"></div></div>"""))
 
+
 package_dir = os.path.dirname(__file__)
 if IPython.__version__ >= '4.0.0' :
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow.1.1.min.js",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow.1.2.min.js",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/data/pako.min.js",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/data/pako_deflate.min.js",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/data/pako_inflate.min.js",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/data/ivglowcomm.js",overwrite = True,user = True,verbose = 0)
 elif IPython.__version__ >= '3.0.0' :
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow.1.1.min.js",overwrite = True,user = True,verbose = 0)
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow.1.2.min.js",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/pako.min.js",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/pako_deflate.min.js",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/pako_inflate.min.js",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/ivglowcomm.js",overwrite = True,user = True,verbose = 0)
 else:
-    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow.1.1.min.js",package_dir+"/data/glowcomm.js"],overwrite=True,verbose=0)
+    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow.1.2.min.js",package_dir+"/data/pako.min.js",package_dir+"/data/pako_deflate.min.js",package_dir+"/data/pako_inflate.min.js",package_dir+"/data/ivglowcomm.js"],overwrite=True,verbose=0)
 
 
 object_registry = {} # GUID -> Instance
@@ -117,7 +145,7 @@ def id2obj(oid):
 class baseObj(object):
     txtime = 0.0
     idx = 0
-    qSize = 512            # default to 500
+    qSize = 2000            # default to 500
     qTime = 0.034          # default to 0.05
     glow = None
     cmds = collections.deque()
@@ -180,10 +208,14 @@ for i in range(baseObj.qSize):
     commcmds.append({"idx": -1, "attr": 'dummy', "val": 0})
 updtobjs2 = set()
 next_call = time.time()
+prev_sz = 0
+glowqueue = collections.deque(maxlen=30)
 
 def commsend():
-    global next_call, commcmds, updtobjs2, glowlock, rate
-    with glowlock:
+    #global next_call, commcmds, updtobjs2, glowlock, rate
+    global next_call, commcmds, commcmds2, updtobjs2, glowlock, rate, prev_sz, glowqueue
+    #with glowlock:
+    if True:
         try:
             if (baseObj.glow != None):
 
@@ -197,19 +229,27 @@ def commsend():
                         del baseObj.cmds[0]
                         l -= 1 
 
-                l = rate.sz if (rate.send == True) else 0
-                if (l > 0):
+                if (len(glowqueue) > 0) and (rate.active):
                     rate.sendcnt += 1
                     thresh = math.ceil(30.0/rate.rval) * 2 + 1
                     if (rate.sendcnt > thresh ):
-                        rate.send = False
-                        rate.sz = 0
                         rate.active = False       # rate fnc no longer appears to be being called
+                elif (len(glowqueue) > 0) and (not rate.active):
+                    for i in range(len(glowqueue)):
+                        req = glowqueue.popleft()
+                        if len(req) > 0 :
+                            baseObj.glow.comm.send(req)
+                    rate.sendcnt = 0
                 else:
                     rate.sendcnt = 0
+                        
+                l = prev_sz
                 if(len(updtobjs2) == 0):
-                    updtobjs2 = baseObj.updtobjs.copy()
-                    baseObj.updtobjs.clear()
+                    #with baseObj.updtobjslock:
+                    if True:
+                        updtobjs2 = baseObj.updtobjs.copy()
+                        baseObj.updtobjs.clear()
+
                 if l < baseObj.qSize:
                     while updtobjs2:
                         oid = updtobjs2.pop()
@@ -255,13 +295,20 @@ def commsend():
                         if l >= baseObj.qSize:
                             #l = 0
                             break
+
+                prev_sz = 0
                 if l > 0:
                     if not rate.active:
                         l = l if (l <= baseObj.qSize) else baseObj.qSize
                         baseObj.glow.comm.send(commcmds[:l])
                     else:
+                                
                         rate.sz = l if (l <= baseObj.qSize) else baseObj.qSize
+                        z64 = convert_base64_zipped_json(commcmds[:l])
+                        glowqueue.append(dict(zipped = z64))
+                        #glowqueue.append(commcmds[:l])
                         rate.send = True
+                        
 
         finally:
             next_call = next_call+0.03333
@@ -397,8 +444,10 @@ else:
 display(Javascript("""require.undef("nbextensions/glow.1.0.min");"""))
 display(Javascript("""require.undef("nbextensions/jquery-ui.custom.min");"""))
 display(Javascript("""require.undef("nbextensions/glow.1.1.min");"""))
+display(Javascript("""require.undef("nbextensions/glow.1.2.min");"""))
 display(Javascript("""require.undef("nbextensions/glowcomm");"""))
-display(Javascript("""require(["nbextensions/glowcomm"], function(){console.log("glowcomm loaded");})"""))
+display(Javascript("""require.undef("nbextensions/ivglowcomm");"""))
+display(Javascript("""require(["nbextensions/ivglowcomm"], function(){console.log("ivisual glowcomm loaded");})"""))
             
 get_ipython().kernel.do_one_iteration()
 
