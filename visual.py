@@ -58,7 +58,7 @@ class RateKeeper2(RateKeeper):
         self.sz = 0
         self.sendcnt = 0
         self.rval = 1
-        super(RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=interactFunc)
+        super(RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
 
     def sendtofrontend(self):
         self.active = True
@@ -100,11 +100,106 @@ class RateKeeper2(RateKeeper):
                 self.rval = maxRate 
         super(RateKeeper2, self).__call__(maxRate)
 
+import logging
+reload(logging)
+logging.basicConfig(level=logging.DEBUG,
+                    format='(%(threadName)-9s) %(message)s',)
+
+"""
+MIN_RENDERS = 10
+MAX_RENDERS = 30
+INTERACT_PERIOD = 1.0/MAX_RENDERS
+"""
+#_clock = time.time
+_clock = time.time
+_sleep = time.sleep
+
+
+def set_event(e):
+    e.set()
+    #logging.debug('Event is set')
+
+class RateKeeper3(object):
+    
+    def __init__(self, interactPeriod=INTERACT_PERIOD, interactFunc=None):
+        self.interactionPeriod = interactPeriod
+        if interactFunc is None:
+            self.interactFunc = self.sendtofrontend
+        else:
+            self.interactFunc = interactFunc
+        self.e = threading.Event()
+        self.next_call = _clock()
+        self.rateCalls = 0 # number of calls to rate function before starting a new 1-sec series
+        self.active = False
+        self.send = False
+        self.sz = 0
+        self.sendcnt = 0
+        self.rval = 1
+
+    def sendtofrontend(self):
+        self.active = True
+        if (len(glowqueue) > 0) or (len(baseObj.cmds) > 0) or self.send:
+            #with glowlock:
+            if True:
+                try:
+                    if (len(baseObj.cmds) > 0):
+                        a = copy.copy(baseObj.cmds)
+                        l = len(a)
+                        baseObj.glow.comm.send(list(a))
+                        a.clear()
+                        while l > 0:
+                            del baseObj.cmds[0]
+                            l -= 1                
+
+                    for i in range(len(glowqueue)):
+                        req = glowqueue.popleft()
+                        if len(req) > 0 :
+                            baseObj.glow.comm.send(req)
+ 
+
+                finally:
+                    self.send = False
+                    self.sendcnt = 0
+                    self.sz = 0
+
+        # Check if events to process from front end
+        if IPython.__version__ >= '3.0.0' :
+            kernel = get_ipython().kernel
+            parent = kernel._parent_header
+            ident = kernel._parent_ident
+            kernel.do_one_iteration()
+            kernel.set_parent(ident, parent)
+            
+            
+    def __call__(self, maxRate = 100):
+        if (self.rval != maxRate) and (maxRate >= 1.0):
+            with glowlock:
+                self.rval = maxRate 
+        self.rateCalls = maxRate
+        self.e.clear()
+        self.next_call = self.next_call + 1.0/maxRate
+        if (self.next_call - _clock()) < 0.0:
+            #logging.debug('reset next_call')
+            self.next_call = _clock() + 1.0/maxRate
+        threading.Timer(self.next_call - _clock(), set_event, args=(self.e,)).start()
+        
+        rendered = False
+        while not self.e.isSet():
+            event_is_set = self.e.wait(1.0/(maxRate*10))
+            if not event_is_set:
+                # send to front end
+                if not rendered:
+                    #self.sendtofrontend()
+                    self.interactFunc()
+                    rendered = True
+                
+
 if sys.version > '3':
     long = int
 
 ifunc = simulateDelay(delayAvg = 0.001)
-rate = RateKeeper2(interactFunc = ifunc)
+#rate = RateKeeper2(interactFunc = ifunc)
+rate = RateKeeper3()
 
 display(HTML("""<div id="scene0"><div id="glowscript" class="glowscript"></div></div>"""))
 
