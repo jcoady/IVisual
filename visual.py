@@ -395,7 +395,10 @@ def commsend():
                 if l > 0:
                     if not rate.active:
                         l = l if (l <= baseObj.qSize) else baseObj.qSize
-                        baseObj.glow.comm.send(commcmds[:l])
+                        req = []
+                        for item in commcmds[:l]:
+                            req.append(item.copy())
+                        baseObj.glow.comm.send(req)
                     else:
                                 
                         rate.sz = l if (l <= baseObj.qSize) else baseObj.qSize
@@ -406,10 +409,10 @@ def commsend():
                         
 
         finally:
-            next_call = next_call+0.03333
+            next_call = next_call+rate.interactionPeriod
             tmr = next_call - time.time()
             if tmr < 0.0:
-                tmr = 0.03333
+                tmr = rate.interactionPeriod
                 next_call = time.time()+tmr
             threading.Timer(tmr, commsend ).start()
     
