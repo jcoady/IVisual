@@ -1,7 +1,7 @@
 
 var vp;
 
-define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.1.2.min","nbextensions/pako.min","nbextensions/pako_inflate.min","nbextensions/pako_deflate.min"], function() {
+define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.2.0.min","nbextensions/pako.min","nbextensions/pako_inflate.min","nbextensions/pako_deflate.min"], function() {
 /*jslint plusplus: true */
 console.log("glowscript loading");
 
@@ -133,7 +133,7 @@ GlowWidget.prototype.handler = function (msg) {
                             if ((glowObjs[cmd.idx] instanceof box) || (glowObjs[cmd.idx] instanceof cone) ||
                                 (glowObjs[cmd.idx] instanceof cylinder) || (glowObjs[cmd.idx] instanceof helix) ||
                                 (glowObjs[cmd.idx] instanceof pyramid) || (glowObjs[cmd.idx] instanceof sphere)) {
-                                glowObjs[cmd.idx]['size'].x = glowObjs[cmd.idx][cmd.attr].mag();
+                                glowObjs[cmd.idx]['size'].x = glowObjs[cmd.idx][cmd.attr].mag;
                             }
                         }
                     } else {

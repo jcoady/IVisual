@@ -151,7 +151,7 @@ class RateKeeper3(object):
                             del baseObj.cmds[0]
                             l -= 1                
 
-                    for i in range(len(glowqueue)):
+                    while glowqueue:
                         req = glowqueue.popleft()
                         if len(req) > 0 :
                             baseObj.glow.comm.send(req)
@@ -207,20 +207,20 @@ display(HTML("""<div id="scene0"><div id="glowscript" class="glowscript"></div><
 package_dir = os.path.dirname(__file__)
 if IPython.__version__ >= '4.0.0' :
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow.1.2.min.js",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow.2.0.min.js",overwrite = True,user = True,verbose = 0)
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/pako.min.js",overwrite = True,user = True,verbose = 0)
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/pako_deflate.min.js",overwrite = True,user = True,verbose = 0)
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/pako_inflate.min.js",overwrite = True,user = True,verbose = 0)
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/ivglowcomm.js",overwrite = True,user = True,verbose = 0)
 elif IPython.__version__ >= '3.0.0' :
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow.1.2.min.js",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow.2.0.min.js",overwrite = True,user = True,verbose = 0)
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/pako.min.js",overwrite = True,user = True,verbose = 0)
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/pako_deflate.min.js",overwrite = True,user = True,verbose = 0)
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/pako_inflate.min.js",overwrite = True,user = True,verbose = 0)
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/ivglowcomm.js",overwrite = True,user = True,verbose = 0)
 else:
-    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow.1.2.min.js",package_dir+"/data/pako.min.js",package_dir+"/data/pako_deflate.min.js",package_dir+"/data/pako_inflate.min.js",package_dir+"/data/ivglowcomm.js"],overwrite=True,verbose=0)
+    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow.2.0.min.js",package_dir+"/data/pako.min.js",package_dir+"/data/pako_deflate.min.js",package_dir+"/data/pako_inflate.min.js",package_dir+"/data/ivglowcomm.js"],overwrite=True,verbose=0)
 
 
 object_registry = {} # GUID -> Instance
@@ -543,6 +543,7 @@ display(Javascript("""require.undef("nbextensions/glow.1.0.min");"""))
 display(Javascript("""require.undef("nbextensions/jquery-ui.custom.min");"""))
 display(Javascript("""require.undef("nbextensions/glow.1.1.min");"""))
 display(Javascript("""require.undef("nbextensions/glow.1.2.min");"""))
+display(Javascript("""require.undef("nbextensions/glow.2.0.min");"""))
 display(Javascript("""require.undef("nbextensions/glowcomm");"""))
 display(Javascript("""require.undef("nbextensions/ivglowcomm");"""))
 display(Javascript("""require(["nbextensions/ivglowcomm"], function(){console.log("ivisual glowcomm loaded");})"""))
@@ -1764,7 +1765,7 @@ class points(baseAttrs2):
                          #{"attr": "pnts", "value": pntsa.tolist()},
                          {"attr": "visible", "value": self.visible},
                          {"attr": "pnts", "value": pnts},
-                         {"attr": "size", "value": self.size},
+                         {"attr": "radius", "value": self.size},
                          {"attr": "size_units", "value": self.size_units},
                          {"attr": "canvas", "value": self.display.idx if self.display != None else
                           canvas.get_selected().idx if canvas.get_selected() != None else -1}]}
@@ -1818,8 +1819,12 @@ class points(baseAttrs2):
     @size.setter
     def size(self,value):
         self._size = value
-        self.addattr('size')
+        self.addattr('radius')
 
+    @property
+    def radius(self): 
+        return self._size
+    
     @property
     def size_units(self): 
         return self._size_units
